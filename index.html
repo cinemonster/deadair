@@ -1295,7 +1295,7 @@ function hideAllOv() {
 // MediaRecorder has ~300-500ms encoding buffer latency baked into
 // the blob, so we rewind the film by DUB_OFFSET to compensate,
 // then start both simultaneously with no setTimeout delay.
-const DUB_OFFSET = 1.0; // seconds — tweak if dub still feels early/late
+const DUB_OFFSET = 0.2; // seconds — tweak if dub still feels early/late
 
 document.getElementById('continueBtn').onclick = () => {
   document.getElementById('scoreOv').classList.remove('show');
