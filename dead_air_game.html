@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEAD AIR — Horror Dialogue Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #cc0000;
+    --dark-red: #8B0000;
+    --black: #0a0a0a;
+    --dark: #111;
+    --mid: #1a1a1a;
+    --panel: #141414;
+    --border: rgba(255,255,255,0.08);
+    --text: #e8e8e0;
+    --muted: rgba(232,232,224,0.45);
+    --hint: rgba(232,232,224,0.2);
+    --green: #1D9E75;
+    --amber: #c4960f;
+    --font-display: 'Special Elite', serif;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-body: 'Barlow', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.6;
+  }
+
+  /* Header */
+  .hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--dark);
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 22px;
+    letter-spacing: 0.15em;
+    color: var(--text);
+  }
+  .logo span { color: var(--red); }
+
+  .tagline {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 24px;
+  }
+  .stat {
+    text-align: center;
+  }
+  .stat-val {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    color: var(--text);
+    display: block;
+  }
+  .stat-lbl {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Main layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 0;
+    height: calc(100vh - 57px);
+  }
+
+  /* Video area */
+  .vid-area {
+    position: relative;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  #vid {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Start screen */
+  .start-screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.85);
+    z-index: 10;
+    transition: opacity 0.4s;
+  }
+  .start-screen.hidden { opacity: 0; pointer-events: none; }
+
+  .start-title {
+    font-family: var(--font-display);
+    font-size: 48px;
+    color: var(--text);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+  .start-title span { color: var(--red); }
+
+  .start-sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    margin-bottom: 32px;
+    text-transform: uppercase;
+  }
+
+  .film-badge {
+    background: var(--dark-red);
+    color: rgba(255,255,255,0.9);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 6px 16px;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+  }
+
+  .how-to {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+  .how-step {
+    text-align: center;
+    width: 90px;
+  }
+  .step-num {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    color: var(--red);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .step-txt {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .start-btn {
+    background: var(--red);
+    border: none;
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 16px;
+    letter-spacing: 0.12em;
+    padding: 14px 48px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .start-btn:hover { background: #e00; }
+  .start-btn:active { transform: scale(0.97); }
+
+  /* Countdown overlay */
+  .countdown-ov {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .countdown-ov.show { opacity: 1; }
+
+  .cue-char-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--red);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .cue-line-box {
+    background: rgba(0,0,0,0.75);
+    border: 1px solid rgba(204,0,0,0.4);
+    border-radius: 3px;
+    padding: 12px 24px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    color: var(--text);
+    text-align: center;
+    max-width: 460px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .cd-ring-wrap {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin-bottom: 12px;
+  }
+  .cd-ring-wrap svg { transform: rotate(-90deg); }
+  .cd-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 36px;
+    color: #fff;
+  }
+
+  .cd-hint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Live dub bar (Hard mode) */
+  .dub-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.82);
+    border-top: 1px solid rgba(204,0,0,0.3);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    z-index: 25;
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .dub-bar.show { opacity: 1; transform: translateY(0); }
+
+  .dub-mic {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(204,0,0,0.15);
+    border: 1.5px solid var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    animation: pulse 0.9s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.15);opacity:0.7} }
+
+  .dub-line {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--text);
+    flex: 1;
+    line-height: 1.4;
+  }
+  .dub-char {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--red);
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .dub-timer {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    color: var(--amber);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* Score overlay */
+  .score-ov {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s;
+  }
+  .score-ov.show { opacity: 1; pointer-events: all; }
+
+  .score-num {
+    font-family: var(--font-display);
+    font-size: 80px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .score-grade {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .transcript-box {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 18px;
+    max-width: 420px;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  .transcript-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .transcript-text {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .wave-row {
+    display: flex;
+    gap: 10px;
+    max-width: 420px;
+    width: 100%;
+    margin: 14px 0 20px;
+  }
+  .wave-box {
+    flex: 1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px;
+    text-align: center;
+  }
+  .wave-box canvas { display: block; margin: 0 auto 4px; }
+  .wave-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .playback-btn {
+    background: transparent;
+    border: 1px solid rgba(204,0,0,0.5);
+    color: var(--red);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 8px 20px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: background 0.2s;
+    border-radius: 2px;
+  }
+  .playback-btn:hover { background: rgba(204,0,0,0.12); }
+
+  .next-btn {
+    background: var(--red);
+    border: none;
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    padding: 11px 36px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 2px;
+  }
+  .next-btn:hover { background: #e00; }
+
+  /* Sidebar */
+  .sidebar {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sb-sect {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+  .sb-sect:last-child { border-bottom: none; flex: 1; overflow-y: auto; }
+
+  .sb-head {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* Difficulty */
+  .diff-row {
+    display: flex;
+    gap: 4px;
+  }
+  .diff-btn {
+    flex: 1;
+    padding: 6px 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .diff-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+  .diff-btn.on { background: var(--dark-red); border-color: var(--red); color: #fff; }
+
+  /* Mode toggle */
+  .mode-row {
+    display: flex;
+    gap: 4px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 6px 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    line-height: 1.3;
+    text-align: center;
+  }
+  .mode-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+  .mode-btn.on { background: rgba(29,158,117,0.2); border-color: #1D9E75; color: #1D9E75; }
+
+  /* Cue list */
+  .cue-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .cue-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .cue-item:hover { background: rgba(255,255,255,0.04); border-color: var(--border); }
+  .cue-item.active { border-color: rgba(204,0,0,0.4); background: rgba(204,0,0,0.06); }
+  .cue-item.done { opacity: 0.4; }
+
+  .ci-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    min-width: 16px;
+  }
+  .ci-info { flex: 1; }
+  .ci-char {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--red);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+  }
+  .ci-preview {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+  .ci-ts {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--hint);
+  }
+  .ci-score {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* Mic indicator */
+  .mic-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+  }
+  .mic-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--hint);
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  .mic-dot.active { background: var(--red); animation: blink 0.8s ease-in-out infinite; }
+  .mic-dot.ok { background: var(--green); animation: none; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .mic-txt { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="logo">DEAD <span>AIR</span></div>
+    <div class="tagline">Horror dialogue dubbing game</div>
+  </div>
+  <div class="stats-row">
+    <div class="stat"><span class="stat-val" id="sScore">0</span><span class="stat-lbl">Score</span></div>
+    <div class="stat"><span class="stat-val" id="sStreak">0</span><span class="stat-lbl">Streak</span></div>
+    <div class="stat"><span class="stat-val" id="sBest">—</span><span class="stat-lbl">Best</span></div>
+    <div class="stat"><span class="stat-val" id="sDone">0/5</span><span class="stat-lbl">Lines</span></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="vid-area">
+    <video id="vid" preload="auto" crossorigin="anonymous" onerror="showVideoError()">
+      <source src="https://archive.org/download/NightOfTheLivingDeadRemasteredHD/NightOfTheLivingDeadRemasteredHD_512Kb.mp4" type="video/mp4">
+      <source src="https://ia800301.us.archive.org/15/items/NightOfTheLivingDeadRemasteredHD/NightOfTheLivingDeadRemasteredHD_512Kb.mp4" type="video/mp4">
+    </video>
+
+    <!-- Video error message -->
+    <div id="videoError" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);border:1px solid rgba(204,0,0,0.5);border-radius:3px;padding:14px 20px;max-width:400px;text-align:center;z-index:50;">
+      <div style="font-family:var(--font-mono);font-size:10px;color:#cc0000;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Video file not found</div>
+      <div style="font-family:var(--font-body);font-size:12px;color:rgba(232,232,224,0.7);line-height:1.6;">
+        Streaming from Archive.org — check your internet connection and try reloading.<br><br>
+        Source:<br>
+        <span style="font-family:var(--font-mono);font-size:11px;color:#cc0000;">archive.org/details/NightOfTheLivingDeadRemasteredHD</span>
+      </div>
+    </div>
+
+    <!-- Start screen -->
+    <div class="start-screen" id="startScreen">
+      <div class="start-title">DEAD <span>AIR</span></div>
+      <div class="start-sub">Public domain horror dialogue game</div>
+      <div class="film-badge">Night of the Living Dead — 1968 — Public Domain</div>
+      <div class="how-to">
+        <div class="how-step"><span class="step-num">01</span><span class="step-txt">Film plays until a cue point</span></div>
+        <div class="how-step"><span class="step-num">02</span><span class="step-txt">Audio drops — you speak the line</span></div>
+        <div class="how-step"><span class="step-num">03</span><span class="step-txt">Score based on accuracy</span></div>
+        <div class="how-step"><span class="step-num">04</span><span class="step-txt">Your dub plays back over the scene</span></div>
+      </div>
+      <button class="start-btn" id="startBtn">BEGIN TRANSMISSION</button>
+    </div>
+
+    <!-- Countdown overlay -->
+    <div class="countdown-ov" id="cdOv">
+      <div class="cue-char-badge" id="cdChar">JOHNNY</div>
+      <div class="cue-line-box" id="cdHangman" style="letter-spacing:0.08em;font-family:var(--font-mono);font-size:15px;">_ _ _ _ _</div>
+      <button id="hintBtn" onclick="showHint()" style="background:transparent;border:1px solid rgba(204,0,0,0.4);color:rgba(204,0,0,0.85);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;padding:5px 14px;cursor:pointer;border-radius:2px;margin-bottom:14px;">HINT (-10 pts)</button>
+      <div class="cd-ring-wrap">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/>
+          <circle id="cdArc" cx="50" cy="50" r="42" fill="none" stroke="#cc0000" stroke-width="5"
+            stroke-dasharray="264" stroke-dashoffset="0" stroke-linecap="round"/>
+        </svg>
+        <div class="cd-num" id="cdNum">5</div>
+      </div>
+      <div class="cd-hint" id="cdHint">Get ready to speak</div>
+    </div>
+
+    <!-- Live dub bar (pause=false mode) -->
+    <div class="dub-bar" id="dubBar">
+      <div class="dub-mic">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cc0000" stroke-width="2">
+          <rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+        </svg>
+      </div>
+      <div class="dub-line">
+        <span class="dub-char" id="dubChar">JOHNNY</span>
+        <span id="dubLine">They're coming to get you, Barbara.</span>
+      </div>
+      <div class="dub-timer" id="dubTimer">5</div>
+    </div>
+
+    <!-- Speaking time bar (Pause & Speak only) -->
+    <div id="speakBar" style="display:none;position:absolute;bottom:0;left:0;right:0;height:5px;background:rgba(255,255,255,0.08);z-index:26;">
+      <div id="speakFill" style="height:100%;width:100%;background:#cc0000;"></div>
+    </div>
+
+    <!-- Score overlay -->
+    <div class="score-ov" id="scoreOv">
+      <div class="score-num" id="scoreNum" style="color:#1D9E75">87</div>
+      <div class="score-grade" id="scoreGrade" style="color:#1D9E75">BRILLIANT TAKE</div>
+      <div class="transcript-box">
+        <div class="transcript-label">You said</div>
+        <div class="transcript-text" id="scoreHeard">They're coming to get you, Barbara.</div>
+      </div>
+      <div class="transcript-box">
+        <div class="transcript-label">Target line</div>
+        <div class="transcript-text" id="scoreTarget">They're coming to get you, Barbara.</div>
+      </div>
+      <div class="wave-row">
+        <div class="wave-box">
+          <canvas id="cvOrig" width="140" height="40"></canvas>
+          <div class="wave-label">Original</div>
+        </div>
+        <div class="wave-box">
+          <canvas id="cvYou" width="140" height="40"></canvas>
+          <div class="wave-label">Your take</div>
+        </div>
+      </div>
+      <button class="playback-btn" id="playbackBtn">Play back my dub</button>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="next-btn" id="continueBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.25);color:rgba(232,232,224,0.8);">Continue film</button>
+        <button class="next-btn" id="nextBtn">Next line</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sb-sect">
+      <div class="sb-head">Difficulty</div>
+      <div class="diff-row">
+        <button class="diff-btn on" onclick="setDiff('easy',this)">Easy</button>
+        <button class="diff-btn" onclick="setDiff('medium',this)">Medium</button>
+        <button class="diff-btn" onclick="setDiff('hard',this)">Hard</button>
+      </div>
+    </div>
+
+    <div class="sb-sect">
+      <div class="sb-head">Mode</div>
+      <div class="mode-row">
+        <button class="mode-btn on" id="modePause" onclick="setMode('pause',this)">Pause<br>& speak</button>
+        <button class="mode-btn" id="modeLive" onclick="setMode('live',this)">Live<br>dub</button>
+      </div>
+    </div>
+
+    <div class="sb-sect">
+      <div class="sb-head">Mic</div>
+      <div class="mic-status">
+        <div class="mic-dot" id="micDot"></div>
+        <div class="mic-txt" id="micTxt">Waiting for permission</div>
+      </div>
+    </div>
+
+    <div class="sb-sect">
+      <div class="sb-head">Options</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <button class="mode-btn" id="subtitleBtn" onclick="toggleSubtitles(this)" style="text-align:left;padding:6px 10px;">
+          Subtitles — off
+        </button>
+        <div id="srtNotice" style="display:none;font-family:var(--font-mono);font-size:9px;color:var(--muted);padding:4px 2px;line-height:1.5;">
+          Place a .srt file named<br><strong style="color:var(--text);">subtitles.srt</strong> in the same folder,<br>then reload the page.
+        </div>
+      </div>
+    </div>
+
+    <div class="sb-sect" style="flex:1;overflow-y:auto">
+      <div class="sb-head">Cue lines</div>
+      <div class="cue-items" id="cueItems"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Each cue has three timestamps (all in seconds):
+//   sceneStart  — where jumpTo() seeks to (player gets context)
+//   countdownAt — when the 6-second countdown overlay appears
+//   lineAt      — when listening starts (pause mode: video pauses; live mode: video mutes)
+const CUES = {
+  easy: [
+    {
+      sceneStart:  350,
+      countdownAt: 360,
+      lineAt:      366,
+      char: "JOHNNY",
+      line: "They're coming to get you, Barbara.",
+      hint: "Famous opening line"
+    },
+  ],
+  medium: [
+    {
+      sceneStart:  350,
+      countdownAt: 360,
+      lineAt:      366,
+      char: "JOHNNY",
+      line: "They're coming to get you, Barbara. Look! There comes one of them now!",
+      hint: "Extended version"
+    },
+  ],
+  hard: [
+    {
+      sceneStart:  350,
+      countdownAt: 360,
+      lineAt:      366,
+      char: "JOHNNY",
+      line: "They're coming to get you, Barbara. Look! There comes one of them now! Look Barbara, there's one of them now!",
+      hint: "Full opening sequence"
+    },
+  ]
+};
+
+let diff = 'easy';
+let dubMode = 'pause';
+let cues = [...CUES.easy];
+let cueIdx = 0;
+let phase = 'idle';
+let totalScore = 0;
+let streak = 0;
+let bestScore = null;
+let scores = {};
+let cdInterval = null;
+let lastTranscript = '';  // populated by SpeechRecognition, scored by Claude API
+let recordedBlob = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let persistentStream = null;   // kept alive whole session
+let dubInterval = null;
+let speakBarInterval = null;
+let hintUsed = false;
+let subtitlesOn = false;
+let currentHangman = '';
+
+const vid = document.getElementById('vid');
+// SpeechRecognition removed — transcription handled by Anthropic API
+
+function showVideoError() {
+  document.getElementById('videoError').style.display = 'block';
+}
+vid.addEventListener('error', showVideoError);
+vid.addEventListener('canplay', () => {
+  document.getElementById('videoError').style.display = 'none';
+});
+
+// Request mic ONCE at page load — MediaRecorder only.
+// SpeechRecognition is replaced by Anthropic API transcription,
+// so there is now only ONE permission prompt for the whole session.
+function initMic() {
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
+    persistentStream = stream;
+    document.getElementById('micDot').className = 'mic-dot ok';
+    document.getElementById('micTxt').textContent = 'Microphone ready';
+  }).catch(() => {
+    document.getElementById('micDot').className = 'mic-dot';
+    document.getElementById('micTxt').textContent = 'Microphone access denied';
+  });
+}
+initMic();
+
+// --- Hangman helpers ---
+function toHangman(line) {
+  // Replace word chars with underscores, keep punctuation/spaces
+  return line.replace(/[a-zA-Z']+/g, w => '_'.repeat(w.length));
+}
+
+function toHint(line) {
+  const words = line.match(/[a-zA-Z']+/g) || [];
+  // Randomly reveal ~50% of words
+  const revealed = new Set();
+  words.forEach((w, i) => { if(Math.random() < 0.5) revealed.add(i); });
+  let wi = 0;
+  return line.replace(/[a-zA-Z']+/g, w => {
+    const show = revealed.has(wi++);
+    return show ? w : '_'.repeat(w.length);
+  });
+}
+
+function showHint() {
+  hintUsed = true;
+  document.getElementById('cdHangman').textContent = toHint(cues[cueIdx].line);
+  document.getElementById('hintBtn').style.opacity = '0.35';
+  document.getElementById('hintBtn').disabled = true;
+}
+
+// --- Subtitle toggle ---
+function toggleSubtitles(btn) {
+  subtitlesOn = !subtitlesOn;
+  const notice = document.getElementById('srtNotice');
+  if(subtitlesOn) {
+    btn.textContent = 'Subtitles — on';
+    btn.style.borderColor = '#1D9E75';
+    btn.style.color = '#1D9E75';
+    notice.style.display = 'block';
+    // Attempt to load track if present
+    let track = vid.querySelector('track');
+    if(!track) {
+      track = document.createElement('track');
+      track.kind = 'subtitles';
+      track.label = 'English';
+      track.srclang = 'en';
+      track.src = 'subtitles.srt';
+      track.default = true;
+      vid.appendChild(track);
+    }
+    if(vid.textTracks[0]) vid.textTracks[0].mode = 'showing';
+  } else {
+    btn.textContent = 'Subtitles — off';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    notice.style.display = 'none';
+    if(vid.textTracks[0]) vid.textTracks[0].mode = 'hidden';
+  }
+}
+
+// --- Speaking time bar ---
+function startSpeakBar(durationMs) {
+  const fill = document.getElementById('speakFill');
+  const bar  = document.getElementById('speakBar');
+  bar.style.display = 'block';
+  fill.style.transition = 'none';
+  fill.style.width = '100%';
+  // Force reflow then animate
+  fill.getBoundingClientRect();
+  fill.style.transition = `width ${durationMs}ms linear`;
+  fill.style.width = '0%';
+}
+function stopSpeakBar() {
+  document.getElementById('speakBar').style.display = 'none';
+  document.getElementById('speakFill').style.transition = 'none';
+  document.getElementById('speakFill').style.width = '100%';
+}
+
+document.getElementById('startBtn').onclick = () => {
+  document.getElementById('startScreen').classList.add('hidden');
+  vid.play();
+  phase = 'watching';
+};
+
+function setDiff(d, btn) {
+  diff = d;
+  cues = [...CUES[d]];
+  cueIdx = 0;
+  phase = 'idle';
+  totalScore = 0; streak = 0; bestScore = null; scores = {};
+  updateStats();
+  renderCues();
+  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  vid.pause();
+  vid.currentTime = 0;
+  document.getElementById('startScreen').classList.remove('hidden');
+  hideAllOv();
+}
+
+function setMode(m, btn) {
+  dubMode = m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function renderCues() {
+  const el = document.getElementById('cueItems');
+  el.innerHTML = cues.map((c,i) => `
+    <div class="cue-item${i===cueIdx?' active':''}${scores[i]!==undefined?' done':''}" onclick="jumpTo(${i})">
+      <div class="ci-num">${i+1}</div>
+      <div class="ci-info">
+        <span class="ci-char">${c.char}</span>
+        <span class="ci-preview" style="letter-spacing:0.04em">${toHangman(c.line).substring(0,28)}${c.line.length>28?'...':''}</span>
+      </div>
+      <div class="ci-ts">${fmt(c.lineAt)}</div>
+      ${scores[i]!==undefined ? `<div class="ci-score" style="color:${scoreColor(scores[i])}">${scores[i]}</div>` : ''}
+    </div>`).join('');
+}
+
+function fmt(s) { return Math.floor(s/60)+':'+(s%60).toString().padStart(2,'0'); }
+function scoreColor(s) { return s>=70?'#1D9E75':s>=50?'#c4960f':'#cc0000'; }
+
+function jumpTo(i) {
+  if(phase==='scoring') return;
+  cueIdx = i;
+  hideAllOv();
+  phase = 'watching';
+  vid.muted = false;
+  vid.currentTime = cues[i].sceneStart;
+  vid.play();
+  renderCues();
+}
+
+function updateStats() {
+  document.getElementById('sScore').textContent = totalScore;
+  document.getElementById('sStreak').textContent = streak;
+  document.getElementById('sBest').textContent = bestScore !== null ? bestScore : '—';
+  document.getElementById('sDone').textContent = Object.keys(scores).length + '/' + cues.length;
+}
+
+// Timeupdate — watch for countdownAt then lineAt
+vid.addEventListener('timeupdate', () => {
+  if(phase !== 'watching' && phase !== 'countdown') return;
+  const cue = cues[cueIdx];
+  if(!cue || cue._fired) return;   // never re-trigger a played cue
+  const t = vid.currentTime;
+
+  if(phase === 'watching' && t >= cue.countdownAt) {
+    triggerCountdown(cue.lineAt - t);
+  }
+  if(phase === 'countdown' && t >= cue.lineAt) {
+    triggerListen();
+  }
+});
+
+function triggerCountdown(gap) {
+  if(phase === 'countdown') return;
+  phase = 'countdown';
+  hintUsed = false;
+  const cue = cues[cueIdx];
+  document.getElementById('cdChar').textContent = cue.char;
+  // Hangman display
+  currentHangman = toHangman(cue.line);
+  document.getElementById('cdHangman').textContent = currentHangman;
+  document.getElementById('cdHint').textContent = cue.hint;
+  // Reset hint button
+  const hb = document.getElementById('hintBtn');
+  hb.style.opacity = '1';
+  hb.disabled = false;
+  document.getElementById('cdOv').classList.add('show');
+
+  const totalSecs = Math.round(gap);
+  let t = totalSecs;
+  const circ = 264;
+  document.getElementById('cdNum').textContent = t;
+  document.getElementById('cdArc').style.strokeDashoffset = 0;
+
+  clearInterval(cdInterval);
+  cdInterval = setInterval(() => {
+    t--;
+    document.getElementById('cdNum').textContent = Math.max(0, t);
+    document.getElementById('cdArc').style.strokeDashoffset = circ * (1 - Math.max(0,t)/totalSecs);
+    if(t <= 0) clearInterval(cdInterval);
+  }, 1000);
+}
+
+function triggerListen() {
+  if(phase === 'listening') return;
+  phase = 'listening';
+  clearInterval(cdInterval);
+  document.getElementById('cdOv').classList.remove('show');
+  const cue = cues[cueIdx];
+
+  if(dubMode === 'pause') {
+    vid.pause();
+    vid.muted = true;
+  } else {
+    vid.muted = true;
+    showDubBar(cue);
+  }
+
+  lastTranscript = '';
+  audioChunks = [];
+  recordedBlob = null;
+
+  const listenDuration = 5000;
+
+  // Mark this cue as fired so timeupdate never re-triggers it
+  cues[cueIdx]._fired = true;
+
+  const doRecord = (stream) => {
+    document.getElementById('micDot').className = 'mic-dot active';
+    document.getElementById('micTxt').textContent = 'Recording...';
+
+    if(dubMode === 'pause') startSpeakBar(listenDuration);
+
+    // Pass the persistent stream directly to MediaRecorder.
+    // We call mediaRecorder.stop() when done — that ends the recording
+    // session but does NOT stop the underlying stream tracks, so Chrome
+    // never needs to re-prompt for permission on subsequent cues.
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      recordedBlob = new Blob(audioChunks, {type:'audio/webm'});
+      // Do NOT stop stream tracks — persistent stream must stay alive.
+      document.getElementById('micDot').className = 'mic-dot ok';
+      document.getElementById('micTxt').textContent = 'Microphone ready';
+      // Blob is now complete — safe to score
+      if(phase === 'listening') finishListening();
+    };
+    mediaRecorder.start();
+
+    // SpeechRecognition runs purely for transcription text.
+    // Since getUserMedia is already granted, Chrome will NOT re-prompt —
+    // SpeechRecognition piggybacks on the existing mic authorization.
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    if(SR) {
+      recognition = new SR();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognition.onresult = e => {
+        lastTranscript = Array.from(e.results).map(r => r[0].transcript).join(' ').trim();
+      };
+      recognition.onerror = () => {}; // silently ignore errors
+      try { recognition.start(); } catch(e) {}
+    }
+
+    if(dubMode === 'live') {
+      let dubT = Math.round(listenDuration / 1000);
+      document.getElementById('dubTimer').textContent = dubT;
+      dubInterval = setInterval(() => {
+        dubT--;
+        document.getElementById('dubTimer').textContent = Math.max(0, dubT);
+        if(dubT <= 0) clearInterval(dubInterval);
+      }, 1000);
+    }
+
+    // When time is up: stop recognition, stop recorder.
+    // onstop fires once blob is flushed — that triggers finishListening.
+    setTimeout(() => {
+      stopSpeakBar();
+      try { if(recognition) recognition.stop(); } catch(e) {}
+      if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    }, listenDuration);
+  };
+
+  if(persistentStream && persistentStream.active) {
+    doRecord(persistentStream);
+  } else {
+    navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
+      persistentStream = stream;
+      doRecord(stream);
+    }).catch(() => {
+      setTimeout(() => { if(phase==='listening') finishListening(); }, listenDuration);
+    });
+  }
+}
+
+function finishListening() {
+  if(phase !== 'listening') return;
+  phase = 'scoring';
+  hideDubBar();
+  vid.muted = false;
+
+  // Show a "scoring" state immediately so the player knows something is happening
+  document.getElementById('scoreNum').textContent = '...';
+  document.getElementById('scoreNum').style.color = 'rgba(232,232,224,0.4)';
+  document.getElementById('scoreGrade').textContent = 'ANALYSING PERFORMANCE';
+  document.getElementById('scoreGrade').style.color = 'rgba(232,232,224,0.4)';
+  document.getElementById('scoreHeard').textContent = 'Transcribing...';
+  document.getElementById('scoreTarget').textContent = cues[cueIdx].line;
+  document.getElementById('playbackBtn').style.display = 'none';
+  document.getElementById('scoreOv').classList.add('show');
+
+  if(dubMode === 'live') {
+    setTimeout(() => scoreWithAI(), 1200);
+  } else {
+    scoreWithAI();
+  }
+}
+
+async function scoreWithAI() {
+  const cue = cues[cueIdx];
+  const transcript = lastTranscript.trim();
+
+  // If no transcript at all, score 0 immediately — no API call needed
+  if(!transcript) {
+    renderScoreScreen(0, '(silence — nothing was heard)', cue.line, 'Even the dead stayed quieter than that...');
+    return;
+  }
+
+  document.getElementById('scoreHeard').textContent = 'Scoring with AI...';
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `You are scoring a horror film dialogue dubbing game.
+
+Target line: "${cue.line}"
+Player said: "${transcript}"
+
+Score the player 0-100 based on:
+- Word accuracy (most important)
+- Whether they captured the meaning and key words
+- Small deductions for missing or wrong words
+
+Return ONLY valid JSON, no other text:
+{"score":85,"note":"one short punchy comment in the voice of a sardonic horror film director, max 12 words"}`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const textBlock = data.content && data.content.find(b => b.type === 'text');
+    if(!textBlock) throw new Error('No text block');
+
+    const clean = textBlock.text.replace(/\`\`\`json|\`\`\`/g, '').trim();
+    const result = JSON.parse(clean);
+
+    let sc = Math.max(0, Math.min(100, Math.round(result.score || 0)));
+    if(hintUsed) sc = Math.max(0, sc - 10);
+
+    renderScoreScreen(sc, transcript, cue.line, result.note);
+
+  } catch(err) {
+    console.error('AI scoring error:', err);
+    // Fallback: simple word-match score so game never breaks
+    const sc = simpleScore(transcript, cue.line);
+    renderScoreScreen(sc, transcript, cue.line, 'The transmission was garbled...');
+  }
+}
+
+// Simple fallback scorer if API is unavailable
+function simpleScore(heard, target) {
+  const clean = s => s.toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(Boolean);
+  const h = clean(heard), t = clean(target);
+  if(!h.length) return 0;
+  let hits = 0;
+  const tc = [...t];
+  h.forEach(w => { const i = tc.indexOf(w); if(i >= 0) { hits++; tc.splice(i,1); } });
+  return Math.round((hits / t.length) * 100);
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function renderScoreScreen(sc, transcript, targetLine, note) {
+  scores[cueIdx] = sc;
+  totalScore += sc;
+  streak = sc >= 60 ? streak + 1 : 0;
+  if(bestScore === null || sc > bestScore) bestScore = sc;
+  updateStats();
+  renderCues();
+
+  document.getElementById('scoreNum').textContent = sc;
+  const g = gradeInfo(sc);
+  document.getElementById('scoreGrade').textContent = g.label + (hintUsed ? ' (hint used)' : '');
+  document.getElementById('scoreGrade').style.color = g.color;
+  document.getElementById('scoreNum').style.color = g.color;
+  document.getElementById('scoreHeard').textContent = transcript;
+  document.getElementById('scoreTarget').textContent = targetLine;
+
+  if(note) {
+    let noteEl = document.getElementById('directorNote');
+    if(!noteEl) {
+      noteEl = document.createElement('div');
+      noteEl.id = 'directorNote';
+      noteEl.style.cssText = 'font-family:var(--font-display);font-size:12px;color:rgba(232,232,224,0.55);font-style:italic;margin-bottom:8px;max-width:380px;text-align:center;line-height:1.5;';
+      document.getElementById('scoreOv').insertBefore(noteEl, document.getElementById('playbackBtn'));
+    }
+    noteEl.textContent = '"'  + note + '"';
+  }
+
+  drawWave('cvOrig', '#cc0000', targetLine.length, 42);
+  drawWave('cvYou', g.color, Math.max(8, transcript.length), sc/100 * 42);
+
+  const pb = document.getElementById('playbackBtn');
+  if(recordedBlob && recordedBlob.size > 1000) {
+    pb.style.display = 'block';
+    pb.textContent = 'Play back my dub';
+    pb.onclick = () => {
+      const url = URL.createObjectURL(recordedBlob);
+      const a = new Audio(url);
+      a.play();
+      pb.textContent = 'Playing...';
+      a.onended = () => { pb.textContent = 'Play back my dub'; URL.revokeObjectURL(url); };
+    };
+  } else {
+    pb.style.display = 'none';
+  }
+}
+
+function gradeInfo(s) {
+  if(s >= 90) return {label:'FLAWLESS TRANSMISSION', color:'#1D9E75'};
+  if(s >= 75) return {label:'BRILLIANT TAKE',        color:'#1D9E75'};
+  if(s >= 60) return {label:'DECENT DELIVERY',       color:'#c4960f'};
+  if(s >= 40) return {label:'STATIC INTERFERENCE',   color:'#c4960f'};
+  return               {label:'SIGNAL LOST',          color:'#cc0000'};
+}
+
+// scoreText removed — AI handles scoring
+
+function drawWave(id, color, complexity, maxH) {
+  const cv = document.getElementById(id);
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, 140, 40);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const bars = 35;
+  for(let i = 0; i < bars; i++) {
+    const seed = Math.abs(Math.sin(i * 0.7 + complexity * 0.13)) * maxH;
+    const h = Math.max(3, seed);
+    const x = (i / bars) * 136 + 2;
+    ctx.moveTo(x, 20 - h/2);
+    ctx.lineTo(x, 20 + h/2);
+  }
+  ctx.stroke();
+}
+
+function showDubBar(cue) {
+  document.getElementById('dubChar').textContent = cue.char;
+  document.getElementById('dubLine').textContent = cue.line;
+  document.getElementById('dubTimer').textContent = '5';
+  document.getElementById('dubBar').classList.add('show');
+}
+function hideDubBar() {
+  document.getElementById('dubBar').classList.remove('show');
+  clearInterval(dubInterval);
+}
+
+function hideAllOv() {
+  document.getElementById('cdOv').classList.remove('show');
+  document.getElementById('scoreOv').classList.remove('show');
+  hideDubBar();
+}
+
+// CONTINUE — resume film with dub audio playing over it
+document.getElementById('continueBtn').onclick = () => {
+  document.getElementById('scoreOv').classList.remove('show');
+  phase = 'watching';
+  vid.muted = false;
+  vid.play();
+  if(recordedBlob) {
+    const url = URL.createObjectURL(recordedBlob);
+    const a = new Audio(url);
+    // Slight delay so film audio and dub feel in sync
+    setTimeout(() => {
+      a.play();
+      a.onended = () => URL.revokeObjectURL(url);
+    }, 200);
+  }
+  renderCues();
+};
+
+// NEXT LINE — jump to next cue's scene start
+document.getElementById('nextBtn').onclick = () => {
+  document.getElementById('scoreOv').classList.remove('show');
+  const next = Math.min(cueIdx + 1, cues.length - 1);
+  if(next === cueIdx) {
+    // No more cues — just continue film
+    phase = 'watching';
+    vid.muted = false;
+    vid.play();
+  } else {
+    cueIdx = next;
+    phase = 'watching';
+    vid.muted = false;
+    vid.currentTime = cues[cueIdx].sceneStart;
+    vid.play();
+  }
+  renderCues();
+};
+
+renderCues();
+</script>
+</body>
+</html>
