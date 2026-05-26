@@ -510,6 +510,7 @@
     transition: all 0.15s;
   }
   .cue-item:hover { background: rgba(255,255,255,0.04); border-color: var(--border); }
+  .cue-item.locked { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
   .cue-item.active { border-color: rgba(204,0,0,0.4); background: rgba(204,0,0,0.06); }
   .cue-item.done { opacity: 0.4; }
 
@@ -595,21 +596,8 @@
 
 <div class="main">
   <div class="vid-area">
-    <video id="vid" preload="auto" onerror="showVideoError()">
-      <source src="https://cors.archive.org/cors/NightOfTheLivingDeadRemasteredHD/NightOfTheLivingDeadRemasteredHD_512Kb.mp4" type="video/mp4">
-      <source src="https://ia600301.us.archive.org/15/items/NightOfTheLivingDeadRemasteredHD/NightOfTheLivingDeadRemasteredHD_512Kb.mp4" type="video/mp4">
-      <source src="https://ia800301.us.archive.org/15/items/NightOfTheLivingDeadRemasteredHD/NightOfTheLivingDeadRemasteredHD_512Kb.mp4" type="video/mp4">
-    </video>
-
-    <!-- Video error message -->
-    <div id="videoError" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);border:1px solid rgba(204,0,0,0.5);border-radius:3px;padding:14px 20px;max-width:400px;text-align:center;z-index:50;">
-      <div style="font-family:var(--font-mono);font-size:10px;color:#cc0000;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Video file not found</div>
-      <div style="font-family:var(--font-body);font-size:12px;color:rgba(232,232,224,0.7);line-height:1.6;">
-        Streaming from Archive.org — check your internet connection and try reloading.<br><br>
-        Source:<br>
-        <span style="font-family:var(--font-mono);font-size:11px;color:#cc0000;">archive.org/details/NightOfTheLivingDeadRemasteredHD</span>
-      </div>
-    </div>
+    <!-- YouTube IFrame Player -->
+    <div id="ytContainer" style="width:100%;height:100%;position:absolute;inset:0;"></div>
 
     <!-- Start screen -->
     <div class="start-screen" id="startScreen">
@@ -792,19 +780,63 @@ let persistentStream = null;   // kept alive whole session
 let dubInterval = null;
 let speakBarInterval = null;
 let hintUsed = false;
+let filmStarted = false;  // cue buttons disabled until BEGIN TRANSMISSION
 let subtitlesOn = false;
 let currentHangman = '';
 
-const vid = document.getElementById('vid');
-// SpeechRecognition removed — transcription handled by Anthropic API
+// ── YouTube IFrame API ──────────────────────────────────────────
+// PASTE YOUR YOUTUBE VIDEO ID BELOW (the part after ?v= in the URL)
+const YT_VIDEO_ID = 'PASTE_VIDEO_ID_HERE';
 
-function showVideoError() {
-  document.getElementById('videoError').style.display = 'block';
-}
-vid.addEventListener('error', showVideoError);
-vid.addEventListener('canplay', () => {
-  document.getElementById('videoError').style.display = 'none';
-});
+let ytPlayer = null;
+let ytReady = false;
+let ytTimeInterval = null;
+
+// Load YouTube IFrame API script
+const ytScript = document.createElement('script');
+ytScript.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(ytScript);
+
+// Called automatically by YouTube API when ready
+window.onYouTubeIframeAPIReady = function() {
+  ytPlayer = new YT.Player('ytContainer', {
+    videoId: YT_VIDEO_ID,
+    playerVars: {
+      autoplay: 0,
+      controls: 1,
+      rel: 0,
+      modestbranding: 1,
+      iv_load_policy: 3,
+      fs: 1
+    },
+    events: {
+      onReady: () => {
+        ytReady = true;
+        // Start polling currentTime for cue detection
+        ytTimeInterval = setInterval(checkCueTiming, 250);
+      },
+      onStateChange: (e) => {
+        // YT.PlayerState.PLAYING = 1
+        if(e.data === 1 && phase === 'idle') {
+          // film started playing but game not started — that's fine
+        }
+      }
+    }
+  });
+};
+
+// Thin wrappers so game code stays clean
+const vid = {
+  get currentTime() { return ytReady ? ytPlayer.getCurrentTime() : 0; },
+  set currentTime(t) { if(ytReady) ytPlayer.seekTo(t, true); },
+  play()  { if(ytReady) ytPlayer.playVideo(); },
+  pause() { if(ytReady) ytPlayer.pauseVideo(); },
+  get muted() { return ytReady ? ytPlayer.isMuted() : false; },
+  set muted(v) {
+    if(!ytReady) return;
+    if(v) ytPlayer.mute(); else ytPlayer.unMute();
+  }
+};
 
 // Request mic ONCE at page load — MediaRecorder only.
 // SpeechRecognition is replaced by Anthropic API transcription,
@@ -849,30 +881,22 @@ function showHint() {
 // --- Subtitle toggle ---
 function toggleSubtitles(btn) {
   subtitlesOn = !subtitlesOn;
+  // YouTube player handles captions natively via its own CC button.
+  // This toggle shows a helpful note pointing to it.
   const notice = document.getElementById('srtNotice');
   if(subtitlesOn) {
     btn.textContent = 'Subtitles — on';
     btn.style.borderColor = '#1D9E75';
     btn.style.color = '#1D9E75';
     notice.style.display = 'block';
-    // Attempt to load track if present
-    let track = vid.querySelector('track');
-    if(!track) {
-      track = document.createElement('track');
-      track.kind = 'subtitles';
-      track.label = 'English';
-      track.srclang = 'en';
-      track.src = 'subtitles.srt';
-      track.default = true;
-      vid.appendChild(track);
-    }
-    if(vid.textTracks[0]) vid.textTracks[0].mode = 'showing';
+    notice.innerHTML = 'Use the <strong style="color:var(--text)">CC button</strong> in the<br>YouTube player controls below.';
+    if(ytReady) ytPlayer.setOption('captions', 'track', {languageCode: 'en'});
   } else {
     btn.textContent = 'Subtitles — off';
     btn.style.borderColor = '';
     btn.style.color = '';
     notice.style.display = 'none';
-    if(vid.textTracks[0]) vid.textTracks[0].mode = 'hidden';
+    if(ytReady) ytPlayer.setOption('captions', 'track', {});
   }
 }
 
@@ -896,8 +920,10 @@ function stopSpeakBar() {
 
 document.getElementById('startBtn').onclick = () => {
   document.getElementById('startScreen').classList.add('hidden');
+  filmStarted = true;
   vid.play();
   phase = 'watching';
+  renderCues(); // re-render to enable cue buttons
 };
 
 function setDiff(d, btn) {
@@ -910,6 +936,7 @@ function setDiff(d, btn) {
   renderCues();
   document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
+  filmStarted = false;
   vid.pause();
   vid.currentTime = 0;
   document.getElementById('startScreen').classList.remove('hidden');
@@ -924,16 +951,27 @@ function setMode(m, btn) {
 
 function renderCues() {
   const el = document.getElementById('cueItems');
-  el.innerHTML = cues.map((c,i) => `
-    <div class="cue-item${i===cueIdx?' active':''}${scores[i]!==undefined?' done':''}" onclick="jumpTo(${i})">
-      <div class="ci-num">${i+1}</div>
+  el.innerHTML = cues.map((c,i) => {
+    const locked = !filmStarted;
+    const classes = [
+      'cue-item',
+      i===cueIdx ? 'active' : '',
+      scores[i]!==undefined ? 'done' : '',
+      locked ? 'locked' : ''
+    ].filter(Boolean).join(' ');
+    return `
+    <div class="${classes}"
+         onclick="${locked ? '' : 'jumpTo('+i+')'}"
+         title="${locked ? 'Start the film first' : ''}">
+      <div class="ci-num">${locked ? '🔒' : i+1}</div>
       <div class="ci-info">
         <span class="ci-char">${c.char}</span>
         <span class="ci-preview" style="letter-spacing:0.04em">${toHangman(c.line).substring(0,28)}${c.line.length>28?'...':''}</span>
       </div>
       <div class="ci-ts">${fmt(c.lineAt)}</div>
       ${scores[i]!==undefined ? `<div class="ci-score" style="color:${scoreColor(scores[i])}">${scores[i]}</div>` : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function fmt(s) { return Math.floor(s/60)+':'+(s%60).toString().padStart(2,'0'); }
@@ -957,11 +995,11 @@ function updateStats() {
   document.getElementById('sDone').textContent = Object.keys(scores).length + '/' + cues.length;
 }
 
-// Timeupdate — watch for countdownAt then lineAt
-vid.addEventListener('timeupdate', () => {
+// Cue timing — polled every 250ms by ytTimeInterval set in onReady
+function checkCueTiming() {
   if(phase !== 'watching' && phase !== 'countdown') return;
   const cue = cues[cueIdx];
-  if(!cue || cue._fired) return;   // never re-trigger a played cue
+  if(!cue || cue._fired) return;
   const t = vid.currentTime;
 
   if(phase === 'watching' && t >= cue.countdownAt) {
@@ -970,7 +1008,7 @@ vid.addEventListener('timeupdate', () => {
   if(phase === 'countdown' && t >= cue.lineAt) {
     triggerListen();
   }
-});
+}
 
 function triggerCountdown(gap) {
   if(phase === 'countdown') return;
